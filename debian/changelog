@@ -1,3 +1,13 @@
+wget (1.16-1+deb8u1scibian1) jessie; urgency=medium
+
+  [ Margarita Manterola ]
+  * Add udeb support, taken from the work done by Colin Watson for Ubuntu
+    in 1.10.2-2ubuntu2 and forward.
+  * Added dependency on libssl-dev for the udeb, as gnutls does not provide
+    a udeb package.
+
+ -- Scibian Packaging Team <packaging@scibian.org>  Thu, 22 Sep 2016 17:11:13 +0200
+
 wget (1.16-1+deb8u1) jessie; urgency=medium
 
   * added patch for CVE-2016-4971. closes: #827003, #829130

@@ -16,11 +16,12 @@ DPKG_EXPORT_BUILDFLAGS = 1
 include /usr/share/dpkg/buildflags.mk
 CFLAGS += -DNO_SSLv2 -D_FILE_OFFSET_BITS=64 -g -Wall
 
-config.status: 
+configure-stamp: configure-udeb-stamp
 	dh_testdir
 	cp /usr/share/misc/config.guess /usr/share/misc/config.sub .
+	mkdir -p build
 	# Add here commands to configure the package.
-	CFLAGS="$(CFLAGS)" CPPFLAGS="$(CPPFLAGS)" LDFLAGS="$(LDFLAGS)" ./configure \
+	cd build && CFLAGS="$(CFLAGS)" CPPFLAGS="$(CPPFLAGS)" LDFLAGS="$(LDFLAGS)" ../configure \
 			--prefix=/usr \
 			--mandir=\$${prefix}/share/man \
 			--infodir=\$${prefix}/share/info \
@@ -31,27 +32,48 @@ config.status:
 
 	touch configure-stamp
 
+configure-udeb-stamp:
+	dh_autotools-dev_updateconfig
+	mkdir -p build-udeb
+	cd build-udeb && CFLAGS="$(CFLAGS) -Os" CPPFLAGS="$(CPPFLAGS)" LDFLAGS="$(LDFLAGS)" ../configure \
+			--prefix=/usr \
+			--mandir=\$${prefix}/share/man \
+			--infodir=\$${prefix}/share/info \
+			--sysconfdir=/etc \
+			--enable-ipv6 \
+			--with-ssl=openssl \
+			--without-libpsl \
+			--disable-debug \
+			--disable-nls \
+			--disable-iri $(confflags)
+
+	touch configure-udeb-stamp
+
 build: build-arch build-indep
 
-build-arch: build-stamp
+build-arch: build-stamp build-udeb-stamp
 
 build-indep: build-stamp
 
-build-stamp: config.status
+build-stamp: configure-stamp
 	dh_testdir
 
 	# Add here commands to compile the package.
-	$(MAKE)
+	cd build && $(MAKE)
 	#/usr/bin/docbook-to-man debian/wget.sgml > wget.1
 
 	cd po; make wget.pot
 
 	touch build-stamp
 
+build-udeb-stamp: configure-udeb-stamp
+	cd build-udeb && $(MAKE)
+	touch build-udeb-stamp
+
 clean: 
 	dh_testdir
 	dh_testroot
-	rm -f build-stamp configure-stamp
+	rm -f build-stamp configure-stamp build-udeb-stamp configure-udeb-stamp
 
 	# Add here commands to clean up after the build process.
 	[ ! -f Makefile ] || $(MAKE) distclean
@@ -59,7 +81,7 @@ clean:
 	rm -f po/*.gmo po/wget.pot po/en@boldquot.po po/en@quot.po \
 	    doc/wget.inf* doc/stamp-vti doc/version.texi \
 	    doc/sample.wgetrc.munged_for_texi_inclusion
-	rm -f config.guess config.sub
+	rm -rf config.sub config.guess build-udeb build
 
 	dh_clean
 
@@ -70,9 +92,12 @@ install: build
 	dh_installdirs
 
 	# Add here commands to install the package into debian/wget.
-	$(MAKE) install DESTDIR=$(CURDIR)/debian/wget
+	cd build && $(MAKE) install DESTDIR=$(CURDIR)/debian/wget
 	rm -f $(CURDIR)/debian/wget/usr/share/info/dir
 
+	# udeb
+	mkdir -p debian/wget-udeb/usr/bin/
+	cp build-udeb/src/wget debian/wget-udeb/usr/bin/wget
 
 # Build architecture-independent files here.
 binary-indep: build install
